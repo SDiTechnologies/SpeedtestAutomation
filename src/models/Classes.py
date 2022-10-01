@@ -197,7 +197,7 @@ class OoklaResponse:
         e.subject = (
             f"Unsatisfactory Broadband Services Notification Report - {fmt_time}"
         )
-        e.content = f"""To whom it may concern:\n\nAn automated speedtest conducted at {fmt_time} failed to meet the minimum FCC performance requirements of products marketed as 'broadband service products' (min. 25 Mbps, download / min. 3 Mbps, upload).\n\nPlease review the following details:\n\n[\n\t'timestamp': {self.timestamp}\n\t'isp': {self.isp}\n\t'location': {self.server.location}, {self.server.country}\n\t'server': {self.server.name}\n\t'download(mbps)': {"{:.2f}".format(self.convert_to_mbps(self.download.bytes, self.download.elapsed))} Mbps\n\t'upload(mbps)': {"{:.2f}".format(self.convert_to_mbps(self.upload.bytes, self.upload.elapsed))} Mbps\n]\n\n\n\n-----COMPLETE DUMP------\n{self.__dict__}- Thanks"""
+        e.content = f"""To whom it may concern:\n\nAn automated speedtest conducted at {fmt_time} failed to meet the minimum FCC performance requirements of products marketed as 'broadband service products' (min. 25 Mbps, download / min. 3 Mbps, upload).\n\nPlease review the following details:\n\n[\n\t'timestamp': {self.timestamp}\n\t'isp': {self.isp}\n\t'location': {self.server.location}, {self.server.country}\n\t'server': {self.server.name}\n\t'download(mbps)': {"{:.2f}".format(self.convert_to_mbps(self.download.bytes, self.download.elapsed))} Mbps\n\t'upload(mbps)': {"{:.2f}".format(self.convert_to_mbps(self.upload.bytes, self.upload.elapsed))} Mbps\n]\n\n- Thanks\n\n\n\n-----COMPLETE DUMP------\n\n{self.__dict__}"""
         smtpHandler.send(e)
 
     def convert_to_mbps(self, size, elapsed_time):
@@ -205,11 +205,9 @@ class OoklaResponse:
         # mbps = (size of file * 8) / (( timeEnd - timeBegin) / 60) / 1048576
         mega = 1024**2  # binary mega rather than 1,000,000
         bits = size * 8
-        # our elapsed time is provided given in milliseconds
         per_second = elapsed_time / 1000
         bps = bits / per_second
         mbps = bps / mega
-
         return mbps
 
     def to_df(self) -> DataFrame:
