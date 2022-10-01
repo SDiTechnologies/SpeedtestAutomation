@@ -4,6 +4,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    command: python main.py
-    # volumes:
-    #   - ./SpeedtestAutomation:/src
+    command: python3 main.py
+    volumes:
+      - ./src/data:/src/data
+      - ./src/logs:/src/logs
+      - ./src/mail:/src/mail
+      # - ./SpeedtestAutomation:/src

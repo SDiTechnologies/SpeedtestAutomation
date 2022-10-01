@@ -1,32 +1,57 @@
-FROM python:alpine AS run
+FROM ubuntu:latest AS run
 WORKDIR /src
 
-ENV \
-    USER=dev \
-    UID=1000
+# ENV \
+#     USER=dev \
+#     UID=1000
 
-RUN apk update \
-    && apk add --no-cache --virtual build-dependencies \
-        build-base gcc curl git bash \
-        python3 python3-dev
+# RUN apk update \
+#     && apk add --no-cache --virtual build-dependencies \
+#         build-base gcc curl git bash \
+#         python3 python3-dev
 
-RUN addgroup -S "$USER"
+RUN apt-get update  \
+    && apt-get upgrade -y \
+    && apt-get install -y curl git bash gcc python3 python3-pip python3-dev
 
-RUN adduser \
-    --disabled-password \
-    --gecos "" \
-    --home "/home/$USER" \
-    --ingroup "$USER" \
-    --uid "$UID" \
-    -G "$USER" \
-    -S "$USER" >/dev/null
+
+
+RUN curl -s https://packagecloud.io/install/repositories/ookla/speedtest-cli/script.deb.sh | bash
+
+# install speedtest-cli & accept license
+RUN apt-get install -y speedtest \
+    && speedtest --accept-license -h
+
+# RUN addgroup --system "$USER"
+
+# RUN adduser \
+#     --disabled-password \
+#     --gecos "" \
+#     --home "/home/$USER" \
+#     --ingroup "$USER" \
+#     --uid "$UID" \
+#     -G "$USER" \
+#     -S "$USER" >/dev/null
 
 COPY ./src /src
 
-RUN mkdir -p /src/dist; \
-    chown -R $USER:$UID /src
+# # RUN mkdir -p /src/dist; \
+# RUN  \
+#     chown -R $USER:$UID /src
 
-USER "$USER"
 
-RUN pip install --upgrade pip; \
-    pip install -r requirements.txt
+# USER "$USER"
+
+
+
+
+# RUN python -m venv /venv \
+#     && /venv/bin/pip install -U pip \
+#     && /venv/bin/pip install --no-cache-dir -r /src/requirements.txt;
+
+RUN pip install -U pip \
+    && pip install --no-cache-dir -r /src/requirements.txt;
+
+    # && apk delete .tmp-build-deps
+# RUN pip install --upgrade pip; \
+#     pip install -r requirements.txt

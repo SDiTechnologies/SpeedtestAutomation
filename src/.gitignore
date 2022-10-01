@@ -1,3 +1,8 @@
+# user output
+data/*.json
+logs/*.txt
+mail/*.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
