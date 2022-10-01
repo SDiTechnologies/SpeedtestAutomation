@@ -1,0 +1,32 @@
+FROM python:alpine AS run
+WORKDIR /src
+
+ENV \
+    USER=dev \
+    UID=1000
+
+RUN apk update \
+    && apk add --no-cache --virtual build-dependencies \
+        build-base gcc curl git bash \
+        python3 python3-dev
+
+RUN addgroup -S "$USER"
+
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/home/$USER" \
+    --ingroup "$USER" \
+    --uid "$UID" \
+    -G "$USER" \
+    -S "$USER" >/dev/null
+
+COPY ./src /src
+
+RUN mkdir -p /src/dist; \
+    chown -R $USER:$UID /src
+
+USER "$USER"
+
+RUN pip install --upgrade pip; \
+    pip install -r requirements.txt
