@@ -29,7 +29,7 @@ class Recorder:
     def get_entries(self) -> DataFrame:
         entries = DataFrame()
         try:
-            self._logger.log(f"Attemting entry retrieval from: {self.path}")
+            self._logger.log(f"Attempting entry retrieval from: {self.path}")
             entries = read_json(self.path)
         except Exception as e:
             self._logger.log(f"No entries found. Returning empty DataFrame() object")
@@ -55,3 +55,10 @@ class Recorder:
         except Exception as e:
             self._logger.log(f"Error occurred while updating entries at: {self.path}")
             self._logger.log(f"{e}")
+
+
+class Reporter(Recorder):
+    def __init__(self):
+        super().__init__()
+
+    # create the sections of a report; What's most important?

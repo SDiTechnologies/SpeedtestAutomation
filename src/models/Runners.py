@@ -16,6 +16,9 @@ class ProcessRunner:
         # start worker thread at instantiation
         self.worker_start()
 
+    def run_stats_report(self):
+        pass
+
     def run_speedtest(self):
         try:
             self._logger.log(
@@ -44,7 +47,7 @@ class ProcessRunner:
         """check if notification is required and transmit related messages"""
         try:
             # if check_notify() -> True then logic for smtp should follow
-            _mailFile = result.local_timestamp
+            _mailFile = result.local_timestamp.strftime("%Y-%m-%d_%H:%M%:%S")
             _smtp = DummySmtpHandler(path=f"{_mailFile}-email.txt")
             if result.check_notify():
                 result.notify(
@@ -53,17 +56,17 @@ class ProcessRunner:
                     recipients=["receiver@example.com"],
                 )
             # # DEBUG CODE
-            else:
-                result.notify(
-                    smtpHandler=_smtp,
-                    sender="sender@example.com",
-                    recipients=["receiver@example.com"],
-                )
+            # else:
+            # result.notify(
+            #     smtpHandler=_smtp,
+            #     sender="sender@example.com",
+            #     recipients=["receiver@example.com"],
+            # )
         except Exception as e:
             self._logger.log(f"{e}")
 
     def publish(self, result: OoklaResponse):
-        """write outputs to file"""
+        """write entries to file"""
         try:
             record = Recorder()
             record.add_entry(result.to_df())
@@ -88,6 +91,6 @@ class ProcessRunner:
         worker.start()
 
     def worker_start_func(self, job_func):
-        """starts a new process seperate from the ProcessRunner queue"""
+        """starts a new process seperate from the ProcessRunner task queue"""
         worker = threading.Thread(target=job_func)
         worker.start()

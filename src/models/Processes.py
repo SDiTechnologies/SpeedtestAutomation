@@ -33,8 +33,10 @@ class Speedtest:
             proc = subprocess.run(cmd, capture_output=True, text=True)
             result = proc.stdout
             error = proc.stderr
-            self._logger.log("Speedtest Complete")
-            print(f"Speedtest Complete With Results:\nError: {error}\nResult: {result}")
+            # self._logger.log("Speedtest Complete")
+            self._logger.log(
+                f"Speedtest Complete With Results:\nError: {error}\nResult: {result}"
+            )
             # if it returns data, give it back as a dict object
             return json.loads(result)
         except Exception as e:

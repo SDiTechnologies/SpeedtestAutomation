@@ -127,7 +127,6 @@ class Upload:
 
 @dataclass
 class OoklaResponse:
-    _logger = Logger()
     type: str
     local_timestamp: str
     timestamp: str
@@ -139,11 +138,12 @@ class OoklaResponse:
     interface: Interface
     server: Server
     result: Result
+    _logger: Logger = Logger()
 
     @staticmethod
     def from_dict(obj: Any) -> "OoklaResponse":
         _type = str(obj.get("type"))
-        _local_timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        _local_timestamp = datetime.now()
         _timestamp = str(obj.get("timestamp"))
         _ping = Ping.from_dict(obj.get("ping"))
         _download = Download.from_dict(obj.get("download"))
@@ -184,7 +184,7 @@ class OoklaResponse:
                 result = True
         finally:
             self._logger.log(
-                f"check_notify() results: {result}, {down_mbps} Mbps(download) / {up_mbps} Mbps(upload)"
+                f"check_notify() results occurred: {result} (bool) | {down_mbps} Mbps(download) / {up_mbps} Mbps(upload)"
             )
             return result
 
@@ -192,9 +192,12 @@ class OoklaResponse:
         e = Email()
         e.from_addr = sender
         e.to_addr = recipients
+        fmt_time = self.local_timestamp.strftime("%Y-%m-%d %H:%M:%S")
         # TODO: consider migrating subject and content templates to a seperate file for convenient access
-        e.subject = f"Unsatisfactory Broadband Services Notification Report - {self.local_timestamp}"
-        e.content = f"""To whom it may concern:\n\nAn automated speedtest conducted at {self.local_timestamp} failed to meet the minimum FCC performance requirements of products marketed as 'broadband service products' (min. 25 Mbps, download / min. 3 Mbps, upload).\n\nPlease review the following details:\n\n[\n\t'timestamp': {self.timestamp}\n\t'isp': {self.isp}\n\t'location': {self.server.location}, {self.server.country}\n\t'server': {self.server.name}\n\t'download(mbps)': {self.convert_to_mbps(self.download.bytes, self.download.elapsed)} Mbps\n\t'upload(mbps)': {self.convert_to_mbps(self.upload.bytes, self.upload.elapsed)} Mbps\n]\n\n- Thanks"""
+        e.subject = (
+            f"Unsatisfactory Broadband Services Notification Report - {fmt_time}"
+        )
+        e.content = f"""To whom it may concern:\n\nAn automated speedtest conducted at {fmt_time} failed to meet the minimum FCC performance requirements of products marketed as 'broadband service products' (min. 25 Mbps, download / min. 3 Mbps, upload).\n\nPlease review the following details:\n\n[\n\t'timestamp': {self.timestamp}\n\t'isp': {self.isp}\n\t'location': {self.server.location}, {self.server.country}\n\t'server': {self.server.name}\n\t'download(mbps)': {"{:.2f}".format(self.convert_to_mbps(self.download.bytes, self.download.elapsed))} Mbps\n\t'upload(mbps)': {"{:.2f}".format(self.convert_to_mbps(self.upload.bytes, self.upload.elapsed))} Mbps\n]\n\n\n\n-----COMPLETE DUMP------\n{self.__dict__}- Thanks"""
         smtpHandler.send(e)
 
     def convert_to_mbps(self, size, elapsed_time):
@@ -213,6 +216,7 @@ class OoklaResponse:
         data = {
             # flat fields
             "type": self.type,
+            "local_timestamp": self.local_timestamp,
             "timestamp": self.timestamp,
             "isp": self.isp,
             "packet_loss": self.packet_loss,
