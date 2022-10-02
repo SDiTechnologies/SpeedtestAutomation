@@ -2,9 +2,10 @@ from typing import Any
 from dataclasses import dataclass
 from datetime import datetime
 from pandas import DataFrame
+from pprint import pformat
 
-from .Loggers import Logger
 from .Emails import SmtpHandler, Email
+from .Loggers import Logger
 
 
 @dataclass
@@ -28,6 +29,7 @@ class Download:
     bandwidth: int
     bytes: int
     elapsed: int
+    mbps: float
     latency: Latency
 
     @staticmethod
@@ -35,8 +37,9 @@ class Download:
         _bandwidth = int(obj.get("bandwidth"))
         _bytes = int(obj.get("bytes"))
         _elapsed = int(obj.get("elapsed"))
+        _mbps = float(convert_to_mbps(_bytes, _elapsed))
         _latency = Latency.from_dict(obj.get("latency"))
-        return Download(_bandwidth, _bytes, _elapsed, _latency)
+        return Download(_bandwidth, _bytes, _elapsed, _mbps, _latency)
 
 
 @dataclass
@@ -114,6 +117,7 @@ class Upload:
     bandwidth: int
     bytes: int
     elapsed: int
+    mbps: float
     latency: Latency
 
     @staticmethod
@@ -121,14 +125,16 @@ class Upload:
         _bandwidth = int(obj.get("bandwidth"))
         _bytes = int(obj.get("bytes"))
         _elapsed = int(obj.get("elapsed"))
+        _mbps = float(convert_to_mbps(_bytes, _elapsed))
         _latency = Latency.from_dict(obj.get("latency"))
-        return Upload(_bandwidth, _bytes, _elapsed, _latency)
+        return Upload(_bandwidth, _bytes, _elapsed, _mbps, _latency)
 
 
 @dataclass
-class OoklaResponse:
+class SpeedtestResponse:
     type: str
-    local_timestamp: str
+    # our timestamp is presently a datetime.time() object which will require methods to display as text ie. timestamp.strftime('%Y-%m-%d')
+    # while somewhat annoying it grants flexibility in determining the date format based on general context eg. emails vs reports
     timestamp: str
     ping: Ping
     download: Download
@@ -141,10 +147,11 @@ class OoklaResponse:
     _logger: Logger = Logger()
 
     @staticmethod
-    def from_dict(obj: Any) -> "OoklaResponse":
+    def from_dict(obj: Any) -> "SpeedtestResponse":
         _type = str(obj.get("type"))
-        _local_timestamp = datetime.now()
-        _timestamp = str(obj.get("timestamp"))
+        ## use _timestamp generated at script runtime to avoid repeated unnecessary work; preserve utc
+        _timestamp = datetime.utcnow()
+        # _timestamp = str(obj.get("timestamp"))
         _ping = Ping.from_dict(obj.get("ping"))
         _download = Download.from_dict(obj.get("download"))
         _upload = Upload.from_dict(obj.get("upload"))
@@ -157,9 +164,8 @@ class OoklaResponse:
         _interface = Interface.from_dict(obj.get("interface"))
         _server = Server.from_dict(obj.get("server"))
         _result = Result.from_dict(obj.get("result"))
-        return OoklaResponse(
+        return SpeedtestResponse(
             _type,
-            _local_timestamp,
             _timestamp,
             _ping,
             _download,
@@ -175,16 +181,13 @@ class OoklaResponse:
         """verify if notify process should follow based on bool return value"""
         result = False
         try:
-            down_mbps = self.convert_to_mbps(self.download.bytes, self.download.elapsed)
-            up_mbps = self.convert_to_mbps(self.upload.bytes, self.upload.elapsed)
-
-            if down_mbps < down_min:
+            if self.download.mbps < down_min:
                 result = True
-            if up_mbps < up_min:
+            if self.upload.mbps < up_min:
                 result = True
         finally:
             self._logger.log(
-                f"check_notify() results occurred: {result} (bool) | {down_mbps} Mbps(download) / {up_mbps} Mbps(upload)"
+                f"check_notify() results occurred: {result} (bool) | {self.download.mbps} Mbps(download) / {self.upload.mbps} Mbps(upload)"
             )
             return result
 
@@ -192,29 +195,15 @@ class OoklaResponse:
         e = Email()
         e.from_addr = sender
         e.to_addr = recipients
-        fmt_time = self.local_timestamp.strftime("%Y-%m-%d %H:%M:%S")
         # TODO: consider migrating subject and content templates to a seperate file for convenient access
-        e.subject = (
-            f"Unsatisfactory Broadband Services Notification Report - {fmt_time}"
-        )
-        e.content = f"""To whom it may concern:\n\nAn automated speedtest conducted at {fmt_time} failed to meet the minimum FCC performance requirements of products marketed as 'broadband service products' (min. 25 Mbps, download / min. 3 Mbps, upload).\n\nPlease review the following details:\n\n[\n\t'timestamp': {self.timestamp}\n\t'isp': {self.isp}\n\t'location': {self.server.location}, {self.server.country}\n\t'server': {self.server.name}\n\t'download(mbps)': {"{:.2f}".format(self.convert_to_mbps(self.download.bytes, self.download.elapsed))} Mbps\n\t'upload(mbps)': {"{:.2f}".format(self.convert_to_mbps(self.upload.bytes, self.upload.elapsed))} Mbps\n]\n\n- Thanks\n\n\n\n-----COMPLETE DUMP------\n\n{self.__dict__}"""
+        e.subject = f"Unsatisfactory Broadband Services Notification Report - {self.timestamp.strftime('%Y-%m-%d')}"
+        e.content = f"""To whom it may concern:\n\nAn automated speedtest conducted at {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')} failed to meet the minimum FCC performance requirements of products marketed as 'broadband service products' (min. 25 Mbps, download / min. 3 Mbps, upload).\n\nPlease review the following details:\n\n[\n\t'timestamp': {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}\n\t'isp': {self.isp}\n\t'location': {self.server.location}, {self.server.country}\n\t'server': {self.server.name}\n\t'download(mbps)': {self.download.mbps} Mbps\n\t'upload(mbps)': {self.upload.mbps} Mbps\n]\n\n- Thanks\n\n\n\n-----COMPLETE DUMP------\n\nResponse data: {pformat(self.__dict__)}\n\nSmtpHandler information: {pformat(smtpHandler.__dict__)}"""
         smtpHandler.send(e)
-
-    def convert_to_mbps(self, size, elapsed_time):
-        """return mbps conversion aka bitrate from size (bytes), elapsed_time (milliseconds)"""
-        # mbps = (size of file * 8) / (( timeEnd - timeBegin) / 60) / 1048576
-        mega = 1024**2  # binary mega rather than 1,000,000
-        bits = size * 8
-        per_second = elapsed_time / 1000
-        bps = bits / per_second
-        mbps = bps / mega
-        return mbps
 
     def to_df(self) -> DataFrame:
         data = {
             # flat fields
             "type": self.type,
-            "local_timestamp": self.local_timestamp,
             "timestamp": self.timestamp,
             "isp": self.isp,
             "packet_loss": self.packet_loss,
@@ -224,6 +213,7 @@ class OoklaResponse:
             "ping_low": self.ping.low,
             "ping_high": self.ping.high,
             # download fields
+            "down_mbps": self.download.mbps,
             "down_bandwidth": self.download.bandwidth,
             "down_bytes": self.download.bytes,
             "down_elapsed": self.download.elapsed,
@@ -232,6 +222,7 @@ class OoklaResponse:
             "down_high": self.download.latency.high,
             "down_jitter": self.download.latency.jitter,
             # upload fields
+            "up_mbps": self.upload.mbps,
             "up_bandwidth": self.upload.bandwidth,
             "up_bytes": self.upload.bytes,
             "up_elapsed": self.upload.elapsed,
@@ -265,3 +256,17 @@ class OoklaResponse:
 # Example Usage
 # jsonstring = json.loads(myjsonstring)
 # root = Root.from_dict(jsonstring)
+
+
+## lazy functions
+def convert_to_mbps(size, elapsed):
+    """return mbps conversion aka 'bitrate' from size (bytes), elapsed (milliseconds)"""
+    # mbps = (size of file * 8) / (( timeEnd - timeBegin) / 60) / 1048576
+    kilobit = 2**10
+    megabit = kilobit**2  # binary mega rather than 1,000,000
+    bits = size * 8
+    per_second = elapsed / 1000
+    bps = bits / per_second
+    mbps = bps / megabit
+    mbps_rnd = round(mbps, 3)
+    return mbps_rnd

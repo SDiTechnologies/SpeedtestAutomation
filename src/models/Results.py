@@ -1,21 +1,25 @@
-from pandas import read_json, DataFrame, concat
+from pandas import read_json, DataFrame, concat, Grouper, to_datetime
 from pathlib import Path
 from pprint import pformat
 
 from .Loggers import Logger
 
 # class ValueConverter:
+#     '''ValueConverter for simple conventional conversion of values in static class methods'''
 #     def __init__(self):
 #         pass
 
-#     def convert_to_mbps(self, size, elapsed_time):
-#         '''convert to mbps for size (bytes) and elapsed_time (milliseconds)'''
-#         mega = (1024**2)  # binary vs 1,000,000
+#     def convert_to_mbps(self, size, elapsed):
+#         """return mbps conversion aka 'bitrate' from size (bytes), elapsed (milliseconds)"""
+#         # mbps = (size of file * 8) / (( timeEnd - timeBegin) / 60) / 1048576
+#         kilobit = (2**10)
+#         megabit = (kilobit**2)  # binary mega rather than 1,000,000
 #         bits = (size * 8)
-#         per_second = (elapsed_time / 1000)
-#         bps = bits / per_second
-#         mbps = bps / mega
-#         return mbps
+#         per_second = (elapsed / 1000)
+#         bps = (bits / per_second)
+#         mbps = (bps / megabit)
+#         mbps_rnd = round(mbps, 3)
+#         return mbps_rnd
 
 
 class Recorder:
@@ -30,6 +34,7 @@ class Recorder:
         entries = DataFrame()
         try:
             self._logger.log(f"Attempting entry retrieval from: {self.path}")
+            # TODO: runs into perms issues with current version of docker scripts when running on host machine vs. docker machine
             entries = read_json(self.path)
         except Exception as e:
             self._logger.log(f"No entries found. Returning empty DataFrame() object")
@@ -58,7 +63,61 @@ class Recorder:
 
 
 class Reporter(Recorder):
-    def __init__(self):
+    def __init__(
+        self,
+        cols=[
+            "timestamp",
+            "isp",
+            "down_mbps",
+            "down_bytes",
+            "down_elapsed",
+            "up_mbps",
+            "up_bytes",
+            "up_elapsed",
+            "server_id",
+            "server_host",
+            "server_name",
+            "server_location",
+            "server_country",
+        ],
+    ):
         super().__init__()
+        self.cols = cols
+        self.df = self.entries[self.cols]
+        self._convert_cols()
 
-    # create the sections of a report; What's most important?
+    def _convert_cols(self):
+        """force any required dtypes here; normally achieved by `df = df.astype(dtypes={"column": type})` though, the unix datetime column seems to be the primary issue"""
+        df = self.df.copy()
+        # # TODO: review once modifications to base classes complete
+        rename_cols = {"down_bytes": "download", "up_bytes": "upload"}
+        # dtype_cols = {}
+
+        # # rename columns
+        # # df.rename/
+        df.rename(columns=rename_cols, inplace=True)
+        # # convert datetime column
+        df["timestamp"] = to_datetime(df["timestamp"], unit="ms")
+
+        # apply updates to existing
+        self.df = df.copy()
+
+    # # create the sections of a report; What's most important?
+    # def report_general(self):
+    #     cols = [[]]
+
+    def report_by_agg(self):
+        df = self.entries[self.cols]
+        pass
+
+    def report_by_day(self):
+        df = self.entries[self.cols]
+        # results_by_day
+        df.groupby(by=[Grouper(key="local_timestamp", freq="1D")])
+        pass
+
+    def report_by_week(self):
+        pass
+
+    def report_by_month(self):
+        pass

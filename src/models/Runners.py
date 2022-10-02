@@ -1,11 +1,22 @@
 import threading
 import queue
+from pathlib import Path
 
 from .Loggers import Logger
 from .Emails import SmtpHandler, DummySmtpHandler
 from .Processes import Speedtest
-from .Results import Recorder
-from .Classes import OoklaResponse
+from .Results import Recorder, Reporter
+from .Classes import SpeedtestResponse
+
+
+def get_env_config():
+    config = {}
+    config_file = Path(".").joinpath(".env")
+    with config_file.open("r") as f:
+        cont = [x.replace("\n", "") for x in f.readlines()]
+        cont_pairs = [x.split("=") for x in cont]
+        config = {k: v for k, v in cont_pairs}
+    return config
 
 
 class ProcessRunner:
@@ -16,9 +27,21 @@ class ProcessRunner:
         # start worker thread at instantiation
         self.worker_start()
 
-    def run_stats_report(self):
-        pass
+    # # reports routine
+    # def run_stats_report(self):
+    #     report = Reporter()
+    #     pass
 
+    # def run_daily_stats():
+    #     pass
+
+    # def run_weekly_stats():
+    #     pass
+
+    # def run_monthly_stats():
+    #     pass
+
+    # speedtest routine
     def run_speedtest(self):
         try:
             self._logger.log(
@@ -29,10 +52,10 @@ class ProcessRunner:
             # fetch dict result
             resp_dict = test.get_result()
             # deserialize json data into an object
-            result = OoklaResponse.from_dict(resp_dict)
+            result = SpeedtestResponse.from_dict(resp_dict)
 
             # DEBUG catch if returned value is not anticipated response type
-            if not isinstance(result, OoklaResponse):
+            if not isinstance(result, SpeedtestResponse):
                 raise Exception("Error Retrieving Speedtest Data: Wrong Type")
 
             # run check for email notification message
@@ -43,29 +66,44 @@ class ProcessRunner:
         except Exception as e:
             self._logger.log(f"{e}")
 
-    def run_notify(self, result: OoklaResponse):
+    def run_notify(self, result: SpeedtestResponse, send: bool = False):
         """check if notification is required and transmit related messages"""
+        _config = get_env_config()
         try:
-            # if check_notify() -> True then logic for smtp should follow
-            _mailFile = result.local_timestamp.strftime("%Y-%m-%d_%H:%M%:%S")
-            _smtp = DummySmtpHandler(path=f"{_mailFile}-email.txt")
+            if send:
+                # create a real smtp handle
+                _smtp = SmtpHandler(
+                    host=_config.get("host"),
+                    port=_config.get("port"),
+                    username=_config.get("username"),
+                    password=_config.get("password"),
+                )
+            else:
+                _mailFile = result.timestamp.strftime("%Y-%m-%d_%H:%M")
+                _smtp = DummySmtpHandler(
+                    path=f"{_mailFile}-email.txt",
+                    host=_config.get("host"),
+                    port=_config.get("port"),
+                    username=_config.get("username"),
+                    password=_config.get("password"),
+                )
             if result.check_notify():
                 result.notify(
                     smtpHandler=_smtp,
                     sender="sender@example.com",
                     recipients=["receiver@example.com"],
                 )
-            # # DEBUG CODE
-            # else:
-            # result.notify(
-            #     smtpHandler=_smtp,
-            #     sender="sender@example.com",
-            #     recipients=["receiver@example.com"],
-            # )
+            # DEBUG CODE
+            else:
+                result.notify(
+                    smtpHandler=_smtp,
+                    sender="sender@example.com",
+                    recipients=["receiver@example.com"],
+                )
         except Exception as e:
             self._logger.log(f"{e}")
 
-    def publish(self, result: OoklaResponse):
+    def publish(self, result: SpeedtestResponse):
         """write entries to file"""
         try:
             record = Recorder()
@@ -74,6 +112,7 @@ class ProcessRunner:
         except Exception as e:
             self._logger.log(f"{e}")
 
+    # threaded processes and queue management
     def worker_main(self):
         """checks for scheduled tasks and processes existing queue items"""
         while 1:
