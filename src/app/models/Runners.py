@@ -27,7 +27,7 @@ class ProcessRunner:
         # start worker thread at instantiation
         self.worker_start()
 
-    # # reports routine
+    # # TODO: reports routine
     # def run_stats_report(self):
     #     report = Reporter()
     #     pass

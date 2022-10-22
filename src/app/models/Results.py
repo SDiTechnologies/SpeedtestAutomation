@@ -4,23 +4,6 @@ from pprint import pformat
 
 from .Loggers import Logger
 
-# class ValueConverter:
-#     '''ValueConverter for simple conventional conversion of values in static class methods'''
-#     def __init__(self):
-#         pass
-
-#     def convert_to_mbps(self, size, elapsed):
-#         """return mbps conversion aka 'bitrate' from size (bytes), elapsed (milliseconds)"""
-#         # mbps = (size of file * 8) / (( timeEnd - timeBegin) / 60) / 1048576
-#         kilobit = (2**10)
-#         megabit = (kilobit**2)  # binary mega rather than 1,000,000
-#         bits = (size * 8)
-#         per_second = (elapsed / 1000)
-#         bps = (bits / per_second)
-#         mbps = (bps / megabit)
-#         mbps_rnd = round(mbps, 3)
-#         return mbps_rnd
-
 
 class Recorder:
     path: str = None
@@ -97,7 +80,7 @@ class Reporter(Recorder):
         # # df.rename/
         df.rename(columns=rename_cols, inplace=True)
         # # convert datetime column
-        df["timestamp"] = to_datetime(df["timestamp"], unit="ms")
+        # df["timestamp"] = to_datetime(df["timestamp"], unit="ms")
 
         # apply updates to existing
         self.df = df.copy()

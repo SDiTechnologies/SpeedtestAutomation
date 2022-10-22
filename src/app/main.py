@@ -6,7 +6,7 @@ runner = ProcessRunner()
 
 # pretty neat little library: https://schedule.readthedocs.io/en/stable/examples.html#run-a-job-every-x-minute
 # schedule.every(1).minutes.do(runner.jobqueue.put, runner.run_speedtest)
-schedule.every(3).to(5).minutes.do(runner.jobqueue.put, runner.run_speedtest)
+schedule.every(30).to(60).minutes.do(runner.jobqueue.put, runner.run_speedtest)
 
 ## TODO: create a report generating process from Recorded entries
 # schedule.every().day.at('10:30').do(runner.jobqueue.put, runner.run_report)

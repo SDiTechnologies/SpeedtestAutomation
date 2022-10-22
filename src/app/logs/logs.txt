@@ -1,0 +1,4 @@
+[LOG] - 2022-10-02 16-42-09 - Attempting entry retrieval from: data/results.json
+[LOG] - 2022-10-02 16-42-09 - No entries found. Returning empty DataFrame() object
+[LOG] - 2022-10-02 16-42-09 - Exception: Expected object or value
+[LOG] - 2022-10-02 16-42-33 - Attempting entry retrieval from: data/results.json
