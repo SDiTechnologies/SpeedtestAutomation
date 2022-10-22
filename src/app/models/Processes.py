@@ -31,14 +31,13 @@ class Speedtest:
         self._logger.log(f"Attempting Speedtest with command: $> {cmdstr}")
         try:
             proc = subprocess.run(cmd, capture_output=True, text=True)
-            result = proc.stdout
-            error = proc.stderr
-            # self._logger.log("Speedtest Complete")
+            stdout = proc.stdout
+            stderr = proc.stderr
             self._logger.log(
-                f"Speedtest Complete With Results:\nError: {error}\nResult: {result}"
+                f"Speedtest Complete With Results:\nError: {stderr}\nResult: {stdout}"
             )
             # if it returns data, give it back as a dict object
-            return json.loads(result)
+            return json.loads(stdout)
         except Exception as e:
             self._logger.log(f"{e}")
-            self._logger.log(f"StdErr: {proc.stderr}")
+            self._logger.log(f"StdErr: {stderr}")

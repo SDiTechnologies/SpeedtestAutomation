@@ -1,5 +1,7 @@
+from typing import Any
 from pathlib import Path
 from smtplib import SMTP  # (port 25)
+
 
 # from smtplib import SMTP_SSL as SMTP   # (port 465)
 from email.mime.text import MIMEText
@@ -27,6 +29,16 @@ class SmtpHandler:
         self.port = port
         self.username = username
         self.password = password
+
+    @staticmethod
+    def from_dict(obj: Any) -> "SmtpHandler":
+        _host = str(obj.get("host"))
+        _port = int(obj.get("port"))
+        _username = str(obj.get("username"))
+        _password = str(obj.get("password"))
+        return SmtpHandler(
+            host=_host, port=_port, username=_username, password=_password
+        )
 
     def send(self, email: Email):
         try:

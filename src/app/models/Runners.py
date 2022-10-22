@@ -2,21 +2,13 @@ import threading
 import queue
 from pathlib import Path
 
+from .Constants import SMTP_CREDENTIALS
+
 from .Loggers import Logger
 from .Emails import SmtpHandler, DummySmtpHandler
 from .Processes import Speedtest
 from .Results import Recorder, Reporter
 from .Classes import SpeedtestResponse
-
-
-def get_env_config():
-    config = {}
-    config_file = Path(".").joinpath(".env")
-    with config_file.open("r") as f:
-        cont = [x.replace("\n", "") for x in f.readlines()]
-        cont_pairs = [x.split("=") for x in cont]
-        config = {k: v for k, v in cont_pairs}
-    return config
 
 
 class ProcessRunner:
@@ -68,16 +60,12 @@ class ProcessRunner:
 
     def run_notify(self, result: SpeedtestResponse, send: bool = False):
         """check if notification is required and transmit related messages"""
-        _config = get_env_config()
+        # _config = get_env_config()
+        _config = SMTP_CREDENTIALS
         try:
             if send:
                 # create a real smtp handle
-                _smtp = SmtpHandler(
-                    host=_config.get("host"),
-                    port=_config.get("port"),
-                    username=_config.get("username"),
-                    password=_config.get("password"),
-                )
+                _smtp = SmtpHandler.from_dict(_config)
             else:
                 _mailFile = result.timestamp.strftime("%Y-%m-%d_%H:%M")
                 _smtp = DummySmtpHandler(
@@ -129,7 +117,8 @@ class ProcessRunner:
         worker = threading.Thread(target=self.worker_main)
         worker.start()
 
-    def worker_start_func(self, job_func):
-        """starts a new process seperate from the ProcessRunner task queue"""
-        worker = threading.Thread(target=job_func)
-        worker.start()
+    ## Irrelevant for this limited application context
+    # def worker_start_func(self, job_func):
+    #     """starts a new process seperate from the ProcessRunner task queue"""
+    #     worker = threading.Thread(target=job_func)
+    #     worker.start()
